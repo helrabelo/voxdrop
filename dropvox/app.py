@@ -94,6 +94,7 @@ class DropVoxApp(rumps.App):
         self._history_menu = rumps.MenuItem("Recent Transcriptions")
         self._populate_history_menu()
 
+        # Model submenu
         model_menu = rumps.MenuItem("Model")
         for m in MODELS:
             item = rumps.MenuItem(
@@ -102,6 +103,7 @@ class DropVoxApp(rumps.App):
             )
             model_menu.add(item)
 
+        # Language submenu
         language_menu = rumps.MenuItem("Language")
         for lang in LANGUAGES:
             if lang is None:
@@ -115,11 +117,19 @@ class DropVoxApp(rumps.App):
                 )
                 language_menu.add(item)
 
+        # Launch at login item
         self._launch_at_login_item = rumps.MenuItem(
             "Launch at Login",
             callback=self._toggle_launch_at_login,
         )
         self._launch_at_login_item.state = self._is_launch_at_login_enabled()
+
+        # Settings submenu (contains Model, Language, Launch at Login)
+        settings_menu = rumps.MenuItem("Settings")
+        settings_menu.add(model_menu)
+        settings_menu.add(language_menu)
+        settings_menu.add(None)  # Separator
+        settings_menu.add(self._launch_at_login_item)
 
         # Version display (non-clickable)
         version_item = rumps.MenuItem(f"DropVox v{__version__}")
@@ -128,22 +138,20 @@ class DropVoxApp(rumps.App):
         self.menu = [
             self._status_item,
             None,
-            rumps.MenuItem("Select Audio Files...", callback=self.select_files),
-            rumps.MenuItem("Paste Audio from Clipboard", callback=self.paste_from_clipboard),
+            rumps.MenuItem("Select Audio Files...", callback=self.select_files, key="o"),
+            rumps.MenuItem("Paste from Clipboard", callback=self.paste_from_clipboard, key="v"),
             None,
             self._history_menu,
             None,
-            model_menu,
-            language_menu,
-            None,
-            self._launch_at_login_item,
+            settings_menu,
             None,
             version_item,
             rumps.MenuItem("Check for Updates...", callback=self._check_for_updates),
-            rumps.MenuItem("DropVox Website", callback=self._open_website),
-            rumps.MenuItem("View on GitHub", callback=self._open_github),
+            rumps.MenuItem("Website", callback=self._open_website),
+            rumps.MenuItem("GitHub", callback=self._open_github),
+            rumps.MenuItem("About DropVox", callback=self.show_about),
             None,
-            rumps.MenuItem("Quit", callback=rumps.quit_application),
+            rumps.MenuItem("Quit DropVox", callback=rumps.quit_application, key="q"),
         ]
 
     def _populate_history_menu(self):
@@ -240,7 +248,7 @@ class DropVoxApp(rumps.App):
         return callback
 
     def _update_model_menu(self):
-        model_menu = self.menu["Model"]
+        model_menu = self.menu["Settings"]["Model"]
         for item in model_menu.values():
             name = item.title.strip().replace("* ", "").replace("  ", "")
             if name == self.model:
@@ -255,7 +263,7 @@ class DropVoxApp(rumps.App):
         return callback
 
     def _update_language_menu(self):
-        language_menu = self.menu["Language"]
+        language_menu = self.menu["Settings"]["Language"]
         for item in language_menu.values():
             if item.title == "":  # Separator
                 continue
