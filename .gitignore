@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+ENV/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# macOS
+.DS_Store
+*.app
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Whisper models (large files)
+*.pt
+
+# Test audio files
+tests/fixtures/*.opus
+tests/fixtures/*.mp3
+tests/fixtures/*.m4a
+tests/fixtures/*.wav
+
+# Environment
+.env
+.env.local

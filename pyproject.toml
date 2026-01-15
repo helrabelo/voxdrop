@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voxdrop"
+version = "0.1.0"
+description = "macOS menu bar app for transcribing WhatsApp audio using Whisper AI"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Hel Rabelo", email = "hel@helrabelo.dev"}
+]
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: MacOS X",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
+dependencies = [
+    "rumps>=0.4.0",
+    "openai-whisper",
+    "pyperclip>=1.8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/helrabelo/voxdrop"
+Repository = "https://github.com/helrabelo/voxdrop"
+
+[project.scripts]
+voxdrop = "voxdrop.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["voxdrop*"]
