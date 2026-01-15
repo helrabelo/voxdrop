@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec file for VoxDrop macOS app."""
+"""PyInstaller spec file for DropVox macOS app."""
 
 import sys
 from pathlib import Path
@@ -10,7 +10,7 @@ block_cipher = None
 project_root = Path(SPECPATH)
 
 a = Analysis(
-    [str(project_root / 'voxdrop' / '__main__.py')],
+    [str(project_root / 'dropvox' / '__main__.py')],
     pathex=[str(project_root)],
     binaries=[],
     datas=[
@@ -48,7 +48,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='VoxDrop',
+    name='DropVox',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -69,22 +69,22 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='VoxDrop',
+    name='DropVox',
 )
 
 app = BUNDLE(
     coll,
-    name='VoxDrop.app',
+    name='DropVox.app',
     icon=str(project_root / 'assets' / 'icon.icns') if (project_root / 'assets' / 'icon.icns').exists() else None,
-    bundle_identifier='dev.helrabelo.voxdrop',
+    bundle_identifier='dev.helrabelo.dropvox',
     info_plist={
-        'CFBundleName': 'VoxDrop',
-        'CFBundleDisplayName': 'VoxDrop',
-        'CFBundleVersion': '0.4.0',
-        'CFBundleShortVersionString': '0.4.0',
+        'CFBundleName': 'DropVox',
+        'CFBundleDisplayName': 'DropVox',
+        'CFBundleVersion': '0.5.0',
+        'CFBundleShortVersionString': '0.5.0',
         'LSMinimumSystemVersion': '10.15',
         'LSUIElement': True,  # Menu bar app (no dock icon)
         'NSHighResolutionCapable': True,
-        'NSMicrophoneUsageDescription': 'VoxDrop needs microphone access for audio transcription.',
+        'NSMicrophoneUsageDescription': 'DropVox needs microphone access for audio transcription.',
     },
 )

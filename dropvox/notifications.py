@@ -30,9 +30,9 @@ def notify_success(file_count: int) -> None:
     else:
         message = f"Transcribed {file_count} files. Copied to clipboard!"
 
-    notify("VoxDrop", message)
+    notify("DropVox", message)
 
 
 def notify_error(error_message: str) -> None:
     """Send an error notification."""
-    notify("VoxDrop", f"Error: {error_message}", sound=True)
+    notify("DropVox", f"Error: {error_message}", sound=True)

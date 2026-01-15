@@ -1,4 +1,4 @@
-"""VoxDrop menu bar application."""
+"""DropVox menu bar application."""
 
 import json
 import plistlib
@@ -10,31 +10,31 @@ from pathlib import Path
 
 import rumps
 
-from voxdrop import __version__
-from voxdrop.clipboard import copy_to_clipboard
-from voxdrop.history import HistoryManager
-from voxdrop.notifications import notify_error, notify_success
-from voxdrop.transcriber import LANGUAGES, MODELS, SUPPORTED_FORMATS, transcribe_files
+from dropvox import __version__
+from dropvox.clipboard import copy_to_clipboard
+from dropvox.history import HistoryManager
+from dropvox.notifications import notify_error, notify_success
+from dropvox.transcriber import LANGUAGES, MODELS, SUPPORTED_FORMATS, transcribe_files
 
 # URLs
-LANDING_PAGE_URL = "https://voxdrop.vercel.app"
-GITHUB_URL = "https://github.com/helrabelo/voxdrop"
-RELEASES_URL = "https://github.com/helrabelo/voxdrop/releases"
-ISSUES_URL = "https://github.com/helrabelo/voxdrop/issues"
-RELEASES_API = "https://api.github.com/repos/helrabelo/voxdrop/releases/latest"
+LANDING_PAGE_URL = "https://dropvox.app"
+GITHUB_URL = "https://github.com/helrabelo/dropvox"
+RELEASES_URL = "https://github.com/helrabelo/dropvox/releases"
+ISSUES_URL = "https://github.com/helrabelo/dropvox/issues"
+RELEASES_API = "https://api.github.com/repos/helrabelo/dropvox/releases/latest"
 
 # Update check cooldown (24 hours in seconds)
 UPDATE_CHECK_COOLDOWN = 24 * 60 * 60
 
 # Preferences directory
-PREFS_DIR = Path.home() / "Library" / "Application Support" / "VoxDrop"
+PREFS_DIR = Path.home() / "Library" / "Application Support" / "DropVox"
 PREFS_FILE = PREFS_DIR / "preferences.json"
 
 
-class VoxDropApp(rumps.App):
+class DropVoxApp(rumps.App):
     """macOS menu bar application for audio transcription."""
 
-    LAUNCH_AGENT_ID = "dev.helrabelo.voxdrop"
+    LAUNCH_AGENT_ID = "dev.helrabelo.dropvox"
     LAUNCH_AGENT_PATH = Path.home() / "Library/LaunchAgents" / f"{LAUNCH_AGENT_ID}.plist"
 
     def __init__(self):
@@ -42,7 +42,7 @@ class VoxDropApp(rumps.App):
         icon_path = self._find_menubar_icon()
 
         super().__init__(
-            name="VoxDrop",
+            name="DropVox",
             title="",  # Empty string for icon-only
             icon=icon_path,
             template=True,  # Adapt to light/dark menu bar
@@ -122,7 +122,7 @@ class VoxDropApp(rumps.App):
         self._launch_at_login_item.state = self._is_launch_at_login_enabled()
 
         # Version display (non-clickable)
-        version_item = rumps.MenuItem(f"VoxDrop v{__version__}")
+        version_item = rumps.MenuItem(f"DropVox v{__version__}")
         version_item.set_callback(None)
 
         self.menu = [
@@ -140,7 +140,7 @@ class VoxDropApp(rumps.App):
             None,
             version_item,
             rumps.MenuItem("Check for Updates...", callback=self._check_for_updates),
-            rumps.MenuItem("VoxDrop Website", callback=self._open_website),
+            rumps.MenuItem("DropVox Website", callback=self._open_website),
             rumps.MenuItem("View on GitHub", callback=self._open_github),
             None,
             rumps.MenuItem("Quit", callback=rumps.quit_application),
@@ -277,15 +277,15 @@ class VoxDropApp(rumps.App):
         return self.LAUNCH_AGENT_PATH.exists()
 
     def _get_executable_path(self) -> str:
-        """Get the path to the VoxDrop executable."""
+        """Get the path to the DropVox executable."""
         import sys
         # If running as .app bundle, use the bundle path
         if getattr(sys, 'frozen', False):
             # PyInstaller bundle
             return sys.executable
         else:
-            # Running from source - use python -m voxdrop
-            return f"{sys.executable} -m voxdrop"
+            # Running from source - use python -m dropvox
+            return f"{sys.executable} -m dropvox"
 
     def _toggle_launch_at_login(self, sender):
         """Toggle launch at login setting."""
@@ -309,7 +309,7 @@ class VoxDropApp(rumps.App):
             program_args = [sys.executable]
         else:
             # Running from source
-            program_args = [sys.executable, "-m", "voxdrop"]
+            program_args = [sys.executable, "-m", "dropvox"]
 
         plist_content = {
             "Label": self.LAUNCH_AGENT_ID,
@@ -328,7 +328,7 @@ class VoxDropApp(rumps.App):
 
     def select_files(self, _):
         if self._is_transcribing:
-            rumps.alert(title="VoxDrop", message="Already transcribing. Please wait...", ok="OK")
+            rumps.alert(title="DropVox", message="Already transcribing. Please wait...", ok="OK")
             return
 
         try:
@@ -360,7 +360,7 @@ class VoxDropApp(rumps.App):
     def paste_from_clipboard(self, _):
         """Transcribe audio files from clipboard."""
         if self._is_transcribing:
-            rumps.alert(title="VoxDrop", message="Already transcribing. Please wait...", ok="OK")
+            rumps.alert(title="DropVox", message="Already transcribing. Please wait...", ok="OK")
             return
 
         try:
@@ -382,7 +382,7 @@ class VoxDropApp(rumps.App):
 
             if not file_paths:
                 rumps.alert(
-                    title="VoxDrop",
+                    title="DropVox",
                     message="No audio files in clipboard.\n\nCopy audio files (.opus, .mp3, .m4a, .wav) in Finder, then try again.",
                     ok="OK"
                 )
@@ -452,9 +452,9 @@ class VoxDropApp(rumps.App):
 
     def show_about(self, _):
         rumps.alert(
-            title="VoxDrop",
+            title="DropVox",
             message=(
-                f"VoxDrop v{__version__}\n\n"
+                f"DropVox v{__version__}\n\n"
                 "Transcribe WhatsApp audio files using Whisper AI.\n\n"
                 "Built by Hel Rabelo\n"
                 "https://helrabelo.dev"
@@ -467,7 +467,7 @@ class VoxDropApp(rumps.App):
         try:
             req = urllib.request.Request(
                 RELEASES_API,
-                headers={"User-Agent": f"VoxDrop/{__version__}"}
+                headers={"User-Agent": f"DropVox/{__version__}"}
             )
             with urllib.request.urlopen(req, timeout=10) as response:
                 data = json.loads(response.read())
@@ -477,7 +477,7 @@ class VoxDropApp(rumps.App):
                     result = rumps.alert(
                         title="Update Available",
                         message=(
-                            f"VoxDrop v{latest_version} is available!\n\n"
+                            f"DropVox v{latest_version} is available!\n\n"
                             f"You have v{__version__}.\n\n"
                             "Would you like to download the update?"
                         ),
@@ -488,8 +488,8 @@ class VoxDropApp(rumps.App):
                         webbrowser.open(RELEASES_URL)
                 else:
                     rumps.alert(
-                        title="VoxDrop",
-                        message=f"You're up to date!\n\nVoxDrop v{__version__} is the latest version.",
+                        title="DropVox",
+                        message=f"You're up to date!\n\nDropVox v{__version__} is the latest version.",
                         ok="OK",
                     )
         except Exception as e:
@@ -510,7 +510,7 @@ class VoxDropApp(rumps.App):
             return False
 
     def _open_website(self, _):
-        """Open VoxDrop website."""
+        """Open DropVox website."""
         webbrowser.open(LANDING_PAGE_URL)
 
     def _open_github(self, _):
@@ -554,7 +554,7 @@ class VoxDropApp(rumps.App):
         try:
             req = urllib.request.Request(
                 RELEASES_API,
-                headers={"User-Agent": f"VoxDrop/{__version__}"}
+                headers={"User-Agent": f"DropVox/{__version__}"}
             )
             with urllib.request.urlopen(req, timeout=10) as response:
                 data = json.loads(response.read())
@@ -564,7 +564,7 @@ class VoxDropApp(rumps.App):
                     # Show notification for available update
                     self._send_notification(
                         "success",
-                        f"VoxDrop v{latest_version} is available! Click 'Check for Updates' to download."
+                        f"DropVox v{latest_version} is available! Click 'Check for Updates' to download."
                     )
         except Exception:
             # Silently fail on startup check

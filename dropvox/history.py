@@ -68,7 +68,7 @@ class TranscriptionRecord:
 class HistoryManager:
     """Manages transcription history with persistence."""
 
-    DEFAULT_DIR = Path.home() / ".voxdrop"
+    DEFAULT_DIR = Path.home() / ".dropvox"
     DEFAULT_FILE = "history.json"
 
     def __init__(self, max_entries: int = 10, storage_dir: Path | None = None):
@@ -76,7 +76,7 @@ class HistoryManager:
 
         Args:
             max_entries: Maximum number of history entries to keep
-            storage_dir: Directory for storage (default: ~/.voxdrop/)
+            storage_dir: Directory for storage (default: ~/.dropvox/)
         """
         self.max_entries = max_entries
         self.storage_dir = storage_dir or self.DEFAULT_DIR

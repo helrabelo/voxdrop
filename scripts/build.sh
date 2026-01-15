@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build VoxDrop macOS app bundle
+# Build DropVox macOS app bundle
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,11 +20,11 @@ rm -rf build dist
 echo "==> Installing dependencies..."
 pip install -e ".[dev]"
 
-echo "==> Building VoxDrop.app..."
-python -m PyInstaller VoxDrop.spec --noconfirm
+echo "==> Building DropVox.app..."
+python -m PyInstaller DropVox.spec --noconfirm
 
 echo "==> Build complete!"
-echo "    App location: dist/VoxDrop.app"
+echo "    App location: dist/DropVox.app"
 echo ""
 echo "To create a DMG for distribution:"
 echo "    ./scripts/create-dmg.sh"
