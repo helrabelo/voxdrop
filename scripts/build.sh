@@ -7,6 +7,13 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 cd "$PROJECT_ROOT"
 
+# Activate venv
+if [ -d "venv" ]; then
+    source venv/bin/activate
+elif [ -d ".venv" ]; then
+    source .venv/bin/activate
+fi
+
 echo "==> Cleaning previous builds..."
 rm -rf build dist
 
@@ -14,7 +21,7 @@ echo "==> Installing dependencies..."
 pip install -e ".[dev]"
 
 echo "==> Building VoxDrop.app..."
-pyinstaller VoxDrop.spec --noconfirm
+python -m PyInstaller VoxDrop.spec --noconfirm
 
 echo "==> Build complete!"
 echo "    App location: dist/VoxDrop.app"
