@@ -1,5 +1,6 @@
 """VoxDrop menu bar application."""
 
+import plistlib
 import threading
 import time
 from pathlib import Path
@@ -14,6 +15,9 @@ from voxdrop.transcriber import LANGUAGES, MODELS, SUPPORTED_FORMATS, transcribe
 
 class VoxDropApp(rumps.App):
     """macOS menu bar application for audio transcription."""
+
+    LAUNCH_AGENT_ID = "dev.helrabelo.voxdrop"
+    LAUNCH_AGENT_PATH = Path.home() / "Library/LaunchAgents" / f"{LAUNCH_AGENT_ID}.plist"
 
     def __init__(self):
         super().__init__(
@@ -67,6 +71,12 @@ class VoxDropApp(rumps.App):
                 )
                 language_menu.add(item)
 
+        self._launch_at_login_item = rumps.MenuItem(
+            "Launch at Login",
+            callback=self._toggle_launch_at_login,
+        )
+        self._launch_at_login_item.state = self._is_launch_at_login_enabled()
+
         self.menu = [
             self._status_item,
             None,
@@ -78,6 +88,7 @@ class VoxDropApp(rumps.App):
             model_menu,
             language_menu,
             None,
+            self._launch_at_login_item,
             rumps.MenuItem("About VoxDrop", callback=self.show_about),
             rumps.MenuItem("Quit", callback=rumps.quit_application),
         ]
@@ -207,6 +218,60 @@ class VoxDropApp(rumps.App):
                         else:
                             item.title = f"  {name}"
                         break
+
+    def _is_launch_at_login_enabled(self) -> bool:
+        """Check if launch at login is enabled."""
+        return self.LAUNCH_AGENT_PATH.exists()
+
+    def _get_executable_path(self) -> str:
+        """Get the path to the VoxDrop executable."""
+        import sys
+        # If running as .app bundle, use the bundle path
+        if getattr(sys, 'frozen', False):
+            # PyInstaller bundle
+            return sys.executable
+        else:
+            # Running from source - use python -m voxdrop
+            return f"{sys.executable} -m voxdrop"
+
+    def _toggle_launch_at_login(self, sender):
+        """Toggle launch at login setting."""
+        if self._is_launch_at_login_enabled():
+            self._disable_launch_at_login()
+            sender.state = False
+        else:
+            self._enable_launch_at_login()
+            sender.state = True
+
+    def _enable_launch_at_login(self):
+        """Create LaunchAgent plist to enable launch at login."""
+        import sys
+
+        # Ensure LaunchAgents directory exists
+        self.LAUNCH_AGENT_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+        # Determine how to launch based on environment
+        if getattr(sys, 'frozen', False):
+            # PyInstaller .app bundle
+            program_args = [sys.executable]
+        else:
+            # Running from source
+            program_args = [sys.executable, "-m", "voxdrop"]
+
+        plist_content = {
+            "Label": self.LAUNCH_AGENT_ID,
+            "ProgramArguments": program_args,
+            "RunAtLoad": True,
+            "KeepAlive": False,
+        }
+
+        with open(self.LAUNCH_AGENT_PATH, "wb") as f:
+            plistlib.dump(plist_content, f)
+
+    def _disable_launch_at_login(self):
+        """Remove LaunchAgent plist to disable launch at login."""
+        if self.LAUNCH_AGENT_PATH.exists():
+            self.LAUNCH_AGENT_PATH.unlink()
 
     def select_files(self, _):
         if self._is_transcribing:
