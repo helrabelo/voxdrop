@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Generate a simple app icon for VoxDrop.
+"""Convert existing PNG icon to macOS .icns format.
 
 Requires: pip install pillow
 
-Creates a basic icon with a microphone/waveform motif.
-For production, replace with a professionally designed icon.
+Takes assets/icon.png and generates assets/icon.icns
 """
 
 import subprocess
@@ -12,55 +11,11 @@ import sys
 from pathlib import Path
 
 try:
-    from PIL import Image, ImageDraw, ImageFont
+    from PIL import Image
 except ImportError:
     print("Installing pillow...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", "pillow"])
-    from PIL import Image, ImageDraw, ImageFont
-
-
-def create_icon(size: int = 1024) -> Image.Image:
-    """Create a simple VoxDrop icon."""
-    # Create image with rounded corners background
-    img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-
-    # Background - gradient-like purple/blue
-    padding = int(size * 0.05)
-    corner_radius = int(size * 0.2)
-
-    # Draw rounded rectangle background
-    draw.rounded_rectangle(
-        [padding, padding, size - padding, size - padding],
-        radius=corner_radius,
-        fill=(88, 86, 214),  # Purple
-    )
-
-    # Draw a simple waveform/audio icon
-    center_x = size // 2
-    center_y = size // 2
-    bar_width = int(size * 0.08)
-    gap = int(size * 0.04)
-
-    # Audio bars (waveform visualization)
-    bar_heights = [0.25, 0.45, 0.65, 0.45, 0.25]
-    num_bars = len(bar_heights)
-    total_width = num_bars * bar_width + (num_bars - 1) * gap
-    start_x = center_x - total_width // 2
-
-    for i, height_ratio in enumerate(bar_heights):
-        bar_height = int(size * height_ratio)
-        x = start_x + i * (bar_width + gap)
-        y1 = center_y - bar_height // 2
-        y2 = center_y + bar_height // 2
-
-        draw.rounded_rectangle(
-            [x, y1, x + bar_width, y2],
-            radius=bar_width // 2,
-            fill=(255, 255, 255),
-        )
-
-    return img
+    from PIL import Image
 
 
 def save_iconset(img: Image.Image, output_dir: Path):
@@ -100,17 +55,23 @@ def create_icns(iconset_dir: Path, output_path: Path):
 def main():
     project_root = Path(__file__).parent.parent
     assets_dir = project_root / "assets"
-    assets_dir.mkdir(exist_ok=True)
 
-    print("Generating VoxDrop icon...")
-
-    # Create the icon
-    icon = create_icon(1024)
-
-    # Save as PNG
     png_path = assets_dir / "icon.png"
-    icon.save(png_path)
-    print(f"Created: {png_path}")
+
+    if not png_path.exists():
+        print(f"Error: {png_path} not found")
+        print("Please place your icon.png in the assets/ folder first.")
+        sys.exit(1)
+
+    print(f"Loading icon from {png_path}...")
+
+    # Load the existing PNG
+    icon = Image.open(png_path).convert('RGBA')
+
+    # Resize to 1024 if needed (standard macOS icon size)
+    if icon.size != (1024, 1024):
+        print(f"Resizing from {icon.size} to 1024x1024...")
+        icon = icon.resize((1024, 1024), Image.Resampling.LANCZOS)
 
     # Create iconset and convert to icns
     iconset_dir = save_iconset(icon, assets_dir)
@@ -121,7 +82,7 @@ def main():
     import shutil
     shutil.rmtree(iconset_dir)
 
-    print("\nDone! Icon files created in assets/")
+    print("\nDone! icon.icns created in assets/")
 
 
 if __name__ == "__main__":

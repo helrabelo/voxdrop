@@ -13,7 +13,9 @@ a = Analysis(
     [str(project_root / 'voxdrop' / '__main__.py')],
     pathex=[str(project_root)],
     binaries=[],
-    datas=[],
+    datas=[
+        (str(project_root / 'assets' / 'menubar_icon.png'), 'assets'),
+    ],
     hiddenimports=[
         'rumps',
         'whisper',

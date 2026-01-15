@@ -20,9 +20,14 @@ class VoxDropApp(rumps.App):
     LAUNCH_AGENT_PATH = Path.home() / "Library/LaunchAgents" / f"{LAUNCH_AGENT_ID}.plist"
 
     def __init__(self):
+        # Find menu bar icon
+        icon_path = self._find_menubar_icon()
+
         super().__init__(
             name="VoxDrop",
-            title="VoxDrop",
+            title=None,  # No text, just icon
+            icon=icon_path,
+            template=True,  # Adapt to light/dark menu bar
             quit_button=None,
         )
         self.model = "base"
@@ -41,6 +46,24 @@ class VoxDropApp(rumps.App):
         # Timer for thread-safe UI updates (runs every 0.25s on main thread)
         self._update_timer = rumps.Timer(self._process_pending_updates, 0.25)
         self._update_timer.start()
+
+    @staticmethod
+    def _find_menubar_icon() -> str | None:
+        """Find the menu bar icon path."""
+        import sys
+
+        # When running from source
+        source_icon = Path(__file__).parent.parent / "assets" / "menubar_icon.png"
+        if source_icon.exists():
+            return str(source_icon)
+
+        # When running from .app bundle
+        if getattr(sys, 'frozen', False):
+            bundle_icon = Path(sys._MEIPASS) / "assets" / "menubar_icon.png"
+            if bundle_icon.exists():
+                return str(bundle_icon)
+
+        return None
 
     def _setup_menu(self):
         """Set up the menu bar menu."""
