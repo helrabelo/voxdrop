@@ -8,6 +8,25 @@ import whisper
 SUPPORTED_FORMATS = {".opus", ".mp3", ".m4a", ".wav"}
 MODELS = ["tiny", "base", "small", "medium", "large"]
 
+# Common languages for WhatsApp transcription (code, display name)
+LANGUAGES = [
+    (None, "Auto-detect"),
+    ("pt", "Portuguese (PT-BR)"),
+    ("en", "English (EN-US)"),
+    None,  # Separator
+    ("es", "Spanish"),
+    ("fr", "French"),
+    ("de", "German"),
+    ("zh", "Chinese"),
+    ("ja", "Japanese"),
+    ("ko", "Korean"),
+    ("ar", "Arabic"),
+    ("it", "Italian"),
+    ("nl", "Dutch"),
+    ("ru", "Russian"),
+    ("hi", "Hindi"),
+]
+
 # Cache the model to avoid reloading
 _model_cache: dict[str, whisper.Whisper] = {}
 

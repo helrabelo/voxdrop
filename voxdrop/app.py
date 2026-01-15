@@ -9,7 +9,7 @@ import rumps
 from voxdrop.clipboard import copy_to_clipboard
 from voxdrop.history import HistoryManager
 from voxdrop.notifications import notify_error, notify_success
-from voxdrop.transcriber import MODELS, transcribe_files
+from voxdrop.transcriber import LANGUAGES, MODELS, SUPPORTED_FORMATS, transcribe_files
 
 
 class VoxDropApp(rumps.App):
@@ -54,14 +54,29 @@ class VoxDropApp(rumps.App):
             )
             model_menu.add(item)
 
+        language_menu = rumps.MenuItem("Language")
+        for lang in LANGUAGES:
+            if lang is None:
+                language_menu.add(None)  # Separator
+            else:
+                code, name = lang
+                is_selected = code == self.language
+                item = rumps.MenuItem(
+                    f"* {name}" if is_selected else f"  {name}",
+                    callback=self._make_language_callback(code),
+                )
+                language_menu.add(item)
+
         self.menu = [
             self._status_item,
             None,
             rumps.MenuItem("Select Audio Files...", callback=self.select_files),
+            rumps.MenuItem("Paste Audio from Clipboard", callback=self.paste_from_clipboard),
             None,
             self._history_menu,
             None,
             model_menu,
+            language_menu,
             None,
             rumps.MenuItem("About VoxDrop", callback=self.show_about),
             rumps.MenuItem("Quit", callback=rumps.quit_application),
@@ -169,6 +184,30 @@ class VoxDropApp(rumps.App):
             else:
                 item.title = f"  {name}"
 
+    def _make_language_callback(self, lang_code: str | None):
+        def callback(_):
+            self.language = lang_code
+            self._update_language_menu()
+        return callback
+
+    def _update_language_menu(self):
+        language_menu = self.menu["Language"]
+        for item in language_menu.values():
+            if item.title == "":  # Separator
+                continue
+            # Extract the display name without prefix
+            display_name = item.title.strip().replace("* ", "").replace("  ", "")
+            # Find the matching language code
+            for lang in LANGUAGES:
+                if lang is not None:
+                    code, name = lang
+                    if name == display_name:
+                        if code == self.language:
+                            item.title = f"* {name}"
+                        else:
+                            item.title = f"  {name}"
+                        break
+
     def select_files(self, _):
         if self._is_transcribing:
             rumps.alert(title="VoxDrop", message="Already transcribing. Please wait...", ok="OK")
@@ -196,6 +235,48 @@ class VoxDropApp(rumps.App):
                         daemon=True,
                     )
                     thread.start()
+
+        except Exception as e:
+            self._send_notification("error", str(e))
+
+    def paste_from_clipboard(self, _):
+        """Transcribe audio files from clipboard."""
+        if self._is_transcribing:
+            rumps.alert(title="VoxDrop", message="Already transcribing. Please wait...", ok="OK")
+            return
+
+        try:
+            from AppKit import NSPasteboard, NSURL
+
+            pasteboard = NSPasteboard.generalPasteboard()
+
+            # Try to get file URLs from pasteboard
+            file_paths = []
+
+            # Check for file URLs (copied files in Finder)
+            urls = pasteboard.readObjectsForClasses_options_([NSURL], None)
+            if urls:
+                for url in urls:
+                    if url.isFileURL():
+                        path = Path(url.path())
+                        if path.suffix.lower() in SUPPORTED_FORMATS:
+                            file_paths.append(str(path))
+
+            if not file_paths:
+                rumps.alert(
+                    title="VoxDrop",
+                    message="No audio files in clipboard.\n\nCopy audio files (.opus, .mp3, .m4a, .wav) in Finder, then try again.",
+                    ok="OK"
+                )
+                return
+
+            # Start transcription
+            thread = threading.Thread(
+                target=self._transcribe_files,
+                args=(file_paths,),
+                daemon=True,
+            )
+            thread.start()
 
         except Exception as e:
             self._send_notification("error", str(e))
@@ -255,7 +336,7 @@ class VoxDropApp(rumps.App):
         rumps.alert(
             title="VoxDrop",
             message=(
-                "VoxDrop v0.2.0\n\n"
+                "VoxDrop v0.3.0\n\n"
                 "Transcribe WhatsApp audio files using Whisper AI.\n\n"
                 "Built by Hel Rabelo\n"
                 "https://helrabelo.dev"
