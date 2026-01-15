@@ -15,6 +15,7 @@ a = Analysis(
     binaries=[],
     datas=[
         (str(project_root / 'assets' / 'menubar_icon.png'), 'assets'),
+        (str(project_root / 'assets' / 'menubar_icon@2x.png'), 'assets'),
     ],
     hiddenimports=[
         'rumps',
@@ -79,8 +80,8 @@ app = BUNDLE(
     info_plist={
         'CFBundleName': 'VoxDrop',
         'CFBundleDisplayName': 'VoxDrop',
-        'CFBundleVersion': '0.3.0',
-        'CFBundleShortVersionString': '0.3.0',
+        'CFBundleVersion': '0.4.0',
+        'CFBundleShortVersionString': '0.4.0',
         'LSMinimumSystemVersion': '10.15',
         'LSUIElement': True,  # Menu bar app (no dock icon)
         'NSHighResolutionCapable': True,

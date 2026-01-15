@@ -1,16 +1,34 @@
 """VoxDrop menu bar application."""
 
+import json
 import plistlib
 import threading
 import time
+import urllib.request
+import webbrowser
 from pathlib import Path
 
 import rumps
 
+from voxdrop import __version__
 from voxdrop.clipboard import copy_to_clipboard
 from voxdrop.history import HistoryManager
 from voxdrop.notifications import notify_error, notify_success
 from voxdrop.transcriber import LANGUAGES, MODELS, SUPPORTED_FORMATS, transcribe_files
+
+# URLs
+LANDING_PAGE_URL = "https://voxdrop.vercel.app"
+GITHUB_URL = "https://github.com/helrabelo/voxdrop"
+RELEASES_URL = "https://github.com/helrabelo/voxdrop/releases"
+ISSUES_URL = "https://github.com/helrabelo/voxdrop/issues"
+RELEASES_API = "https://api.github.com/repos/helrabelo/voxdrop/releases/latest"
+
+# Update check cooldown (24 hours in seconds)
+UPDATE_CHECK_COOLDOWN = 24 * 60 * 60
+
+# Preferences directory
+PREFS_DIR = Path.home() / "Library" / "Application Support" / "VoxDrop"
+PREFS_FILE = PREFS_DIR / "preferences.json"
 
 
 class VoxDropApp(rumps.App):
@@ -46,6 +64,9 @@ class VoxDropApp(rumps.App):
         # Timer for thread-safe UI updates (runs every 0.25s on main thread)
         self._update_timer = rumps.Timer(self._process_pending_updates, 0.25)
         self._update_timer.start()
+
+        # Check for updates on startup (non-blocking, with cooldown)
+        threading.Thread(target=self._startup_update_check, daemon=True).start()
 
     @staticmethod
     def _find_menubar_icon() -> str | None:
@@ -100,6 +121,10 @@ class VoxDropApp(rumps.App):
         )
         self._launch_at_login_item.state = self._is_launch_at_login_enabled()
 
+        # Version display (non-clickable)
+        version_item = rumps.MenuItem(f"VoxDrop v{__version__}")
+        version_item.set_callback(None)
+
         self.menu = [
             self._status_item,
             None,
@@ -112,7 +137,12 @@ class VoxDropApp(rumps.App):
             language_menu,
             None,
             self._launch_at_login_item,
-            rumps.MenuItem("About VoxDrop", callback=self.show_about),
+            None,
+            version_item,
+            rumps.MenuItem("Check for Updates...", callback=self._check_for_updates),
+            rumps.MenuItem("VoxDrop Website", callback=self._open_website),
+            rumps.MenuItem("View on GitHub", callback=self._open_github),
+            None,
             rumps.MenuItem("Quit", callback=rumps.quit_application),
         ]
 
@@ -424,10 +454,118 @@ class VoxDropApp(rumps.App):
         rumps.alert(
             title="VoxDrop",
             message=(
-                "VoxDrop v0.3.0\n\n"
+                f"VoxDrop v{__version__}\n\n"
                 "Transcribe WhatsApp audio files using Whisper AI.\n\n"
                 "Built by Hel Rabelo\n"
                 "https://helrabelo.dev"
             ),
             ok="OK",
         )
+
+    def _check_for_updates(self, _):
+        """Check GitHub for new releases."""
+        try:
+            req = urllib.request.Request(
+                RELEASES_API,
+                headers={"User-Agent": f"VoxDrop/{__version__}"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                data = json.loads(response.read())
+                latest_version = data["tag_name"].lstrip("v")
+
+                if self._version_newer(latest_version, __version__):
+                    result = rumps.alert(
+                        title="Update Available",
+                        message=(
+                            f"VoxDrop v{latest_version} is available!\n\n"
+                            f"You have v{__version__}.\n\n"
+                            "Would you like to download the update?"
+                        ),
+                        ok="Download",
+                        cancel="Later",
+                    )
+                    if result == 1:  # OK/Download clicked
+                        webbrowser.open(RELEASES_URL)
+                else:
+                    rumps.alert(
+                        title="VoxDrop",
+                        message=f"You're up to date!\n\nVoxDrop v{__version__} is the latest version.",
+                        ok="OK",
+                    )
+        except Exception as e:
+            rumps.alert(
+                title="Update Check Failed",
+                message=f"Could not check for updates.\n\n{str(e)}",
+                ok="OK",
+            )
+
+    @staticmethod
+    def _version_newer(latest: str, current: str) -> bool:
+        """Check if latest version is newer than current."""
+        try:
+            latest_parts = [int(x) for x in latest.split(".")]
+            current_parts = [int(x) for x in current.split(".")]
+            return latest_parts > current_parts
+        except ValueError:
+            return False
+
+    def _open_website(self, _):
+        """Open VoxDrop website."""
+        webbrowser.open(LANDING_PAGE_URL)
+
+    def _open_github(self, _):
+        """Open GitHub repository."""
+        webbrowser.open(GITHUB_URL)
+
+    def _load_preferences(self) -> dict:
+        """Load preferences from file."""
+        if PREFS_FILE.exists():
+            try:
+                with open(PREFS_FILE) as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError):
+                pass
+        return {}
+
+    def _save_preferences(self, prefs: dict):
+        """Save preferences to file."""
+        try:
+            PREFS_DIR.mkdir(parents=True, exist_ok=True)
+            with open(PREFS_FILE, "w") as f:
+                json.dump(prefs, f)
+        except OSError:
+            pass
+
+    def _startup_update_check(self):
+        """Check for updates on startup with 24h cooldown."""
+        prefs = self._load_preferences()
+        last_check = prefs.get("last_update_check", 0)
+        now = time.time()
+
+        # Skip if checked within cooldown period
+        if now - last_check < UPDATE_CHECK_COOLDOWN:
+            return
+
+        # Update last check time
+        prefs["last_update_check"] = now
+        self._save_preferences(prefs)
+
+        # Check for updates silently
+        try:
+            req = urllib.request.Request(
+                RELEASES_API,
+                headers={"User-Agent": f"VoxDrop/{__version__}"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                data = json.loads(response.read())
+                latest_version = data["tag_name"].lstrip("v")
+
+                if self._version_newer(latest_version, __version__):
+                    # Show notification for available update
+                    self._send_notification(
+                        "success",
+                        f"VoxDrop v{latest_version} is available! Click 'Check for Updates' to download."
+                    )
+        except Exception:
+            # Silently fail on startup check
+            pass
