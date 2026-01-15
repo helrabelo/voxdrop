@@ -1,7 +1,41 @@
 """Audio transcription using OpenAI Whisper."""
 
+import os
+import sys
 from pathlib import Path
 from typing import Callable
+
+# Set up static ffmpeg before importing whisper
+def _setup_ffmpeg():
+    """Add static-ffmpeg to PATH if available."""
+    # Check if running from PyInstaller bundle
+    if getattr(sys, 'frozen', False):
+        # For .app bundle, check multiple possible locations
+        possible_paths = [
+            # PyInstaller _MEIPASS location
+            Path(sys._MEIPASS) / 'static_ffmpeg' / 'bin' / 'darwin',
+            # .app bundle Frameworks location
+            Path(sys.executable).parent.parent / 'Frameworks' / 'static_ffmpeg' / 'bin' / 'darwin',
+            # .app bundle Resources location
+            Path(sys.executable).parent.parent / 'Resources' / 'static_ffmpeg' / 'bin' / 'darwin',
+        ]
+
+        for ffmpeg_dir in possible_paths:
+            if ffmpeg_dir.exists() and (ffmpeg_dir / 'ffmpeg').exists():
+                os.environ["PATH"] = str(ffmpeg_dir) + os.pathsep + os.environ.get("PATH", "")
+                return
+
+    # Try static_ffmpeg module (for development)
+    try:
+        import static_ffmpeg
+        ffmpeg_path, _ = static_ffmpeg.run.get_or_fetch_platform_executables_else_raise()
+        ffmpeg_dir = str(Path(ffmpeg_path).parent)
+        if ffmpeg_dir not in os.environ.get("PATH", ""):
+            os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
+    except ImportError:
+        pass  # static-ffmpeg not installed, rely on system ffmpeg
+
+_setup_ffmpeg()
 
 import whisper
 

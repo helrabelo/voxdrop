@@ -9,14 +9,45 @@ block_cipher = None
 # Get the project root
 project_root = Path(SPECPATH)
 
+# Find static-ffmpeg binaries
+def get_ffmpeg_binaries():
+    """Get static-ffmpeg binary paths for bundling."""
+    try:
+        import static_ffmpeg
+        ffmpeg_path, ffprobe_path = static_ffmpeg.run.get_or_fetch_platform_executables_else_raise()
+        ffmpeg_dir = Path(ffmpeg_path).parent
+        return [
+            (str(ffmpeg_dir / 'ffmpeg'), 'static_ffmpeg/bin/darwin'),
+            (str(ffmpeg_dir / 'ffprobe'), 'static_ffmpeg/bin/darwin'),
+        ]
+    except Exception:
+        return []
+
+ffmpeg_binaries = get_ffmpeg_binaries()
+
+# Find whisper assets
+def get_whisper_assets():
+    """Get whisper asset files for bundling."""
+    try:
+        import whisper
+        whisper_dir = Path(whisper.__path__[0])
+        assets_dir = whisper_dir / 'assets'
+        if assets_dir.exists():
+            return [(str(assets_dir), 'whisper/assets')]
+    except Exception:
+        pass
+    return []
+
+whisper_assets = get_whisper_assets()
+
 a = Analysis(
     [str(project_root / 'dropvox' / '__main__.py')],
     pathex=[str(project_root)],
-    binaries=[],
+    binaries=ffmpeg_binaries,
     datas=[
         (str(project_root / 'assets' / 'menubar_icon.png'), 'assets'),
         (str(project_root / 'assets' / 'menubar_icon@2x.png'), 'assets'),
-    ],
+    ] + whisper_assets,
     hiddenimports=[
         'rumps',
         'whisper',
@@ -30,6 +61,8 @@ a = Analysis(
         'tiktoken',
         'tiktoken_ext',
         'tiktoken_ext.openai_public',
+        'static_ffmpeg',
+        'static_ffmpeg.run',
     ],
     hookspath=[],
     hooksconfig={},
@@ -80,8 +113,8 @@ app = BUNDLE(
     info_plist={
         'CFBundleName': 'DropVox',
         'CFBundleDisplayName': 'DropVox',
-        'CFBundleVersion': '0.5.0',
-        'CFBundleShortVersionString': '0.5.0',
+        'CFBundleVersion': '0.7.1',
+        'CFBundleShortVersionString': '0.7.1',
         'LSMinimumSystemVersion': '10.15',
         'LSUIElement': True,  # Menu bar app (no dock icon)
         'NSHighResolutionCapable': True,
