@@ -25,7 +25,7 @@ class VoxDropApp(rumps.App):
 
         super().__init__(
             name="VoxDrop",
-            title=None,  # No text, just icon
+            title="",  # Empty string for icon-only
             icon=icon_path,
             template=True,  # Adapt to light/dark menu bar
             quit_button=None,
@@ -413,7 +413,7 @@ class VoxDropApp(rumps.App):
 
         finally:
             self._is_transcribing = False
-            self._set_title("VoxDrop")
+            self._set_title("")  # Reset to icon-only
             # Reset status after delay
             def reset():
                 time.sleep(3)
