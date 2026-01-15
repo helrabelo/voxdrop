@@ -340,9 +340,7 @@ class DropVoxApp(rumps.App):
             return
 
         try:
-            from AppKit import NSApplication, NSModalResponseOK, NSOpenPanel
-
-            NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+            from AppKit import NSModalResponseOK, NSOpenPanel
 
             panel = NSOpenPanel.openPanel()
             panel.setCanChooseFiles_(True)

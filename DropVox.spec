@@ -113,8 +113,8 @@ app = BUNDLE(
     info_plist={
         'CFBundleName': 'DropVox',
         'CFBundleDisplayName': 'DropVox',
-        'CFBundleVersion': '0.7.1',
-        'CFBundleShortVersionString': '0.7.1',
+        'CFBundleVersion': '0.7.2',
+        'CFBundleShortVersionString': '0.7.2',
         'LSMinimumSystemVersion': '10.15',
         'LSUIElement': True,  # Menu bar app (no dock icon)
         'NSHighResolutionCapable': True,
