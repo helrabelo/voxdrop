@@ -19,25 +19,33 @@ class VoxDropApp(rumps.App):
         super().__init__(
             name="VoxDrop",
             title="VoxDrop",
-            quit_button=None,  # We'll add our own
+            quit_button=None,
         )
         self.model = "base"
-        self.language = None  # Auto-detect
+        self.language = None
         self._is_transcribing = False
         self.history_manager = HistoryManager(max_entries=10)
+
+        # Thread-safe state for UI updates
+        self._pending_status = None
+        self._pending_title = None
+        self._pending_history_refresh = False
+        self._pending_notification = None  # (type, message)
+
         self._setup_menu()
+
+        # Timer for thread-safe UI updates (runs every 0.25s on main thread)
+        self._update_timer = rumps.Timer(self._process_pending_updates, 0.25)
+        self._update_timer.start()
 
     def _setup_menu(self):
         """Set up the menu bar menu."""
-        # Status item (at top)
         self._status_item = rumps.MenuItem("Status: Ready")
-        self._status_item.set_callback(None)  # Not clickable
+        self._status_item.set_callback(None)
 
-        # History submenu
         self._history_menu = rumps.MenuItem("Recent Transcriptions")
-        self._refresh_history_menu()
+        self._populate_history_menu()
 
-        # Model submenu
         model_menu = rumps.MenuItem("Model")
         for m in MODELS:
             item = rumps.MenuItem(
@@ -48,22 +56,19 @@ class VoxDropApp(rumps.App):
 
         self.menu = [
             self._status_item,
-            None,  # Separator
+            None,
             rumps.MenuItem("Select Audio Files...", callback=self.select_files),
-            None,  # Separator
+            None,
             self._history_menu,
-            None,  # Separator
+            None,
             model_menu,
-            None,  # Separator
+            None,
             rumps.MenuItem("About VoxDrop", callback=self.show_about),
             rumps.MenuItem("Quit", callback=rumps.quit_application),
         ]
 
-    def _refresh_history_menu(self):
-        """Refresh the history submenu with current entries."""
-        # Clear existing items
-        self._history_menu.clear()
-
+    def _populate_history_menu(self):
+        """Populate history menu with current entries."""
         history = self.history_manager.get_all()
 
         if not history:
@@ -72,7 +77,6 @@ class VoxDropApp(rumps.App):
             self._history_menu.add(empty_item)
         else:
             for record in history:
-                # Format: "Preview text... (time ago)"
                 label = f'"{record.preview}" ({record.time_ago()})'
                 item = rumps.MenuItem(
                     label,
@@ -80,51 +84,83 @@ class VoxDropApp(rumps.App):
                 )
                 self._history_menu.add(item)
 
-            # Add separator and clear option
             self._history_menu.add(None)
-            clear_item = rumps.MenuItem(
-                "Clear History",
-                callback=self._clear_history,
-            )
-            self._history_menu.add(clear_item)
+            self._history_menu.add(rumps.MenuItem("Clear History", callback=self._clear_history))
+
+    def _process_pending_updates(self, _):
+        """Process pending UI updates on main thread."""
+        # Update status
+        if self._pending_status is not None:
+            self._status_item.title = f"Status: {self._pending_status}"
+            self._pending_status = None
+
+        # Update title
+        if self._pending_title is not None:
+            self.title = self._pending_title
+            self._pending_title = None
+
+        # Refresh history
+        if self._pending_history_refresh:
+            self._pending_history_refresh = False
+            try:
+                self._history_menu.clear()
+                self._populate_history_menu()
+            except Exception:
+                pass
+
+        # Send notification
+        if self._pending_notification is not None:
+            ntype, msg = self._pending_notification
+            self._pending_notification = None
+            if ntype == "success":
+                notify_success(msg)
+            elif ntype == "error":
+                notify_error(msg)
+
+    # Thread-safe setters (can be called from any thread)
+    def _set_status(self, status: str):
+        self._pending_status = status
+
+    def _set_title(self, title: str):
+        self._pending_title = title
+
+    def _request_history_refresh(self):
+        self._pending_history_refresh = True
+
+    def _send_notification(self, ntype: str, msg):
+        self._pending_notification = (ntype, msg)
 
     def _make_history_callback(self, record_id: str):
-        """Create a callback for clicking a history item."""
-
         def callback(_):
             record = self.history_manager.get_by_id(record_id)
             if record:
                 if copy_to_clipboard(record.text):
-                    self._update_status("Copied to clipboard!")
-                    # Reset status after 2 seconds
-                    threading.Timer(2.0, lambda: self._update_status("Ready")).start()
+                    self._set_status("Copied to clipboard!")
+                    # Schedule reset
+                    def reset():
+                        time.sleep(2)
+                        self._set_status("Ready")
+                    threading.Thread(target=reset, daemon=True).start()
                 else:
-                    notify_error("Failed to copy to clipboard")
-
+                    self._send_notification("error", "Failed to copy to clipboard")
         return callback
 
     def _clear_history(self, _):
-        """Clear all history."""
         self.history_manager.clear()
-        self._refresh_history_menu()
-        self._update_status("History cleared")
-        threading.Timer(2.0, lambda: self._update_status("Ready")).start()
-
-    def _update_status(self, status: str):
-        """Update the status menu item."""
-        self._status_item.title = f"Status: {status}"
+        self._request_history_refresh()
+        self._set_status("History cleared")
+        def reset():
+            time.sleep(2)
+            self._set_status("Ready")
+        threading.Thread(target=reset, daemon=True).start()
 
     def _make_model_callback(self, model_name: str):
-        """Create a callback for model selection."""
-
         def callback(_):
             self.model = model_name
             self._update_model_menu()
-
         return callback
 
     def _update_model_menu(self):
-        """Update the model menu checkmarks."""
         model_menu = self.menu["Model"]
         for item in model_menu.values():
             name = item.title.strip().replace("* ", "").replace("  ", "")
@@ -134,20 +170,13 @@ class VoxDropApp(rumps.App):
                 item.title = f"  {name}"
 
     def select_files(self, _):
-        """Handle file selection."""
         if self._is_transcribing:
-            rumps.alert(
-                title="VoxDrop",
-                message="Already transcribing. Please wait...",
-                ok="OK",
-            )
+            rumps.alert(title="VoxDrop", message="Already transcribing. Please wait...", ok="OK")
             return
 
-        # Use native macOS file picker via PyObjC (more reliable than tkinter)
         try:
             from AppKit import NSApplication, NSModalResponseOK, NSOpenPanel
 
-            # Activate the app to bring file dialog to front
             NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
 
             panel = NSOpenPanel.openPanel()
@@ -161,7 +190,6 @@ class VoxDropApp(rumps.App):
             if panel.runModal() == NSModalResponseOK:
                 file_paths = [str(url.path()) for url in panel.URLs()]
                 if file_paths:
-                    # Run transcription in background thread
                     thread = threading.Thread(
                         target=self._transcribe_files,
                         args=(file_paths,),
@@ -170,32 +198,26 @@ class VoxDropApp(rumps.App):
                     thread.start()
 
         except Exception as e:
-            notify_error(str(e))
+            self._send_notification("error", str(e))
 
     def _transcribe_files(self, file_paths: list[str]):
         """Background transcription task."""
         self._is_transcribing = True
-        original_title = self.title
         file_count = len(file_paths)
         start_time = time.time()
 
         try:
-            # Update status
-            self._update_status(f"Transcribing 0/{file_count}...")
-            self.title = f"[0/{file_count}]"
+            self._set_status(f"Loading model...")
+            self._set_title(f"[0/{file_count}]")
 
-            # Convert to Path objects
             paths = [Path(p) for p in file_paths]
             file_names = [p.name for p in paths]
 
-            # Transcribe with progress updates
             def on_progress(current: int, total: int, filename: str):
-                elapsed = time.time() - start_time
                 pct = int((current / total) * 100)
-                # Truncate filename if too long
                 short_name = filename[:20] + "..." if len(filename) > 20 else filename
-                self._update_status(f"Transcribing {pct}% ({current}/{total}) - {short_name}")
-                self.title = f"[{current}/{total}]"
+                self._set_status(f"Transcribing {pct}% ({current}/{total}) - {short_name}")
+                self._set_title(f"[{current}/{total}]")
 
             text = transcribe_files(
                 paths,
@@ -205,33 +227,31 @@ class VoxDropApp(rumps.App):
             )
 
             # Save to history
-            self.history_manager.save(
-                text=text,
-                file_names=file_names,
-                model=self.model,
-            )
-            self._refresh_history_menu()
+            self.history_manager.save(text=text, file_names=file_names, model=self.model)
+            self._request_history_refresh()
 
             # Copy to clipboard
             if copy_to_clipboard(text):
                 elapsed = time.time() - start_time
-                self._update_status(f"Done! ({elapsed:.1f}s)")
-                notify_success(file_count)
+                self._set_status(f"Done! ({elapsed:.1f}s)")
+                self._send_notification("success", file_count)
             else:
-                notify_error("Failed to copy to clipboard")
+                self._send_notification("error", "Failed to copy to clipboard")
 
         except Exception as e:
-            self._update_status(f"Error: {str(e)[:30]}")
-            notify_error(str(e))
+            self._set_status(f"Error: {str(e)[:30]}")
+            self._send_notification("error", str(e))
 
         finally:
             self._is_transcribing = False
-            self.title = original_title
-            # Reset status after 3 seconds
-            threading.Timer(3.0, lambda: self._update_status("Ready")).start()
+            self._set_title("VoxDrop")
+            # Reset status after delay
+            def reset():
+                time.sleep(3)
+                self._set_status("Ready")
+            threading.Thread(target=reset, daemon=True).start()
 
     def show_about(self, _):
-        """Show about dialog."""
         rumps.alert(
             title="VoxDrop",
             message=(
